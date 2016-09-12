@@ -1,0 +1,188 @@
+---
+output:
+  pdf_document:
+    includes:
+      in_header: tex/header.tex
+    fig_caption: false
+  word_document: default
+---
+
+```{r DocumentSetup, echo=FALSE, results='hide', include=FALSE}
+### # specify knitr options
+knitr::opts_chunk$set(echo = FALSE, results = 'asis')
+
+### # initialize section counter
+robjSecEnum <- rqudocuhelper::SectionEnumerator$new()
+```
+
+![Qualitas Logo](png/QualitasLogo.png)
+
+\fcolorbox{black}{white}{
+	\parbox[t]{1.0\linewidth}{
+		\centering \fontsize{12pt}{20pt}\selectfont % 
+		\vspace*{0.5cm} % 
+
+		\hfill Übersicht
+
+		\vspace*{0.5cm} 
+	}
+}
+
+\vspace*{0.5cm}
+
+\fcolorbox{black}{white}{
+	\parbox[t]{1.0\linewidth}{
+		\centering \fontsize{25pt}{40pt}\selectfont %
+		\vspace*{0.7cm}
+    Existierende Pedigree-Exporte \\
+    in ARGUS                      \\
+    RV1763                        \\
+
+		\vspace*{0.7cm} % Space between the end of the title and the bottom of the grey box
+	}
+}
+
+\vspace*{1cm}
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{png/Pedigree.png}
+\end{center}
+
+\vspace{5ex}
+{\centering \small
+\hfill
+\begin{tabular}{l}
+Peter von Rohr                      \\
+FB EDV, Qualitas AG                 \\
+Chamerstrasse 56, CH-6300 Zug       \\
+\verb+http://www.qualitasag.ch+     \\
+\verb+peter.vonrohr@qualitasag.ch+  
+\end{tabular}
+}
+
+\pagebreak
+
+\tableofcontents
+
+\pagebreak
+
+```{r DocuStatusTable}
+r6objDocStat <- rmddochelper::R6ClassDocuStatus$new()
+r6objDocStat$set_current_status(psVersion = "0.0.901",
+                                psStatus = "Erstellung",
+                                psDate = "2016-07-25",
+                                psProject = "RV1763")
+r6objDocStat$set_current_status(psVersion = "0.0.902",
+                                psStatus = "pa_zws_pedi",
+                                psDate = "2016-07-28",
+                                psProject = "RV1763")
+r6objDocStat$set_current_status(psVersion = "0.0.903",
+                                psStatus = "Ergänzungen von USU und USN",
+                                psDate = "2016-09-12",
+                                psProject = "RV1763")
+
+
+r6objDocStat$include_doc_stat(psTitle = "## Status des Dokuments")
+#r6objDocStat$include_doc_stat()
+```
+
+\pagebreak
+
+```{r AbrTable}
+r6ob_abbrtable <- rmddochelper::R6ClassTableAbbrev$new()
+r6ob_abbrtable$include_abbr_table(psAbbrTitle = "## Abkürzungen")
+```
+
+\pagebreak
+
+
+## Erklärung
+Dieses Dokument gibt eine Übersicht über bestehende Routinen im  
+`r r6ob_abbrtable$add_abbrev(psAbbrev = "ARGUS", psMeaning = "Informationssystem für BrunaNet, redonline+, beefnet, etc")`, welche Pedigrees exportieren.
+
+
+## Einführung
+Pedigrees liegen meist als Tabelle mit mindestens drei Spalten vor. In der minimalen Ausführung des Pedigrees steht auf jeder Zeile ein Individuum mit seinen Eltern. Die Elterninformation muss nicht vollständig sein. Jedes Individuum darf im Pedigree nur einmal vorkommen. Eltern können mehrmals vorkommen. 
+
+Zusätzlich zur Abstammungsinformation können auch noch weitere Informationen, wie Geschlecht oder Herdebuchrasse oder Blutanteile angegeben sein. 
+
+Meistens wird als Konsistenzbedingung gefordert, dass die Zeilen im Pedigree so sortiert sind, dass Eltern vor ihren Nachkommen aufgeführt sind.
+
+
+## Pedigree-Exporte in ARGUS
+Eine Suche nach dem Schlüsselwort "pedigree" über alle SQL-Quelldateien führte zu folgendem Ergebnis. Die folgende Ergebnistabelle wird mit `searchAllSrc` vom R-Package `SimpleProgCodeAnalysis` gemacht. Das Resultat dieser Suche ist im Anhang dieses Dokuments aufgeführt. Die meisten dieser Suchresultate sind nicht massgebend für die Pedigree Exporte. Es finden sich aber darin gewisse Hinweise, welche Routinen wir genauer untersuchen sollten.
+
+### Prozedur pa_zws_pedi.pedigree_rrtdm
+Die Prozedur `pedigree_rrtdm` im package `pa_zws_pedi` ist die wahrscheinlich aktuellste Routine für den Export eines Pedigrees. Diese Prozedur schreibt ein Pedigree in eine Datei. Der Export des Pedigrees wird direkt ab der Tabelle `animal` gemacht. Per default lautet der Name der Outputdatei `<yyyymmdd>_pedigree_rrtdm.dat`, wobei `<yyyymmdd>` für das aktuelle Systemdatum (`SYSDATE`) steht. In Abhängigkeit der Prozedurparameter `pnExportBlood` und `pnExportNameDame` werden auch Blutanteile der Tiere und Namen von weiblichen Tieren in separate Dateien geschrieben. Die Namen dieser Dateien sind mit den Zusätzen `_Blood_` und `_NameDame_` versehen.
+
+Das Format des exportierten Pedigrees ist in der nachfolgenden Tabelle dargestellt. 
+
+```{r PedigreeRRTDMFormatTabelle}
+nNrCol <- 13
+dfPedRrtdmFormTable <- data.frame(Kolonne = c(1:nNrCol),
+                                  StartPosition = c(1,12,23,34,39,41,44,45,57,71,79,82,84),
+                                  EndPosition   = c(10,21,32,37,40,43,44,56,70,78,81,82,84),
+                                  Was           = c("TierId","VaterId","MutterId","Geburtsjahr",
+                                                    "Rassecode","ITB-Land","ITB-Geschlecht",
+                                                    "ITB-Nummer","TVD-Nummer","Geburtsdatum",
+                                                    "Rasse(code)","Status","HB-Status"), 
+                                  stringsAsFactors = FALSE)
+knitr::kable(dfPedRrtdmFormTable)
+```
+
+Welche Tiere in einem Export in die Pedigree-Outputdatei geschrieben werden ist abhängig vom Mandanten, für welchen das Pedigree exportiert wird. Der Mandant wird durch das Argument `pnMandant` bestimmt und nimmt einen Defaultwert von 1 an, d.h. per default wird ein Pedigree für den Mandanten 
+`r r6ob_abbrtable$add_abbrev(psAbbrev = "BVCH", psMeaning = "Braunvieh Schweiz")` exportiert. In Abhängigkeit des Mandanten wird ein Set von Rassen definiert. Alle Tiere, welche einer HB-Rasse (Feld `ani_race_id`) angehören, welche in diesem Set ist, werden exportiert. 
+
+Pseudotiere sind Tiere, welche im Feld `ANI_PSEUDOTIER` einen Wert von 1 haben, werden beim Export ignoriert. Falls das Prozedurarguments `pnIgnoreOKCode` den Wert 0 (default) hat, werden Tiere, welche den OK-Code auf NOT OK gesetzt haben ohne Abstammung, d.h. die Eltern werden auf unbekannt (0) gesetzt, exportiert. Wird das Argument `pnIgnoreOKCode` auf 1 gesetzt, dann werden NOT OK-Tiere nicht speziell behandelt und deren Daten werden ganz normal exportiert.
+
+
+### Weitere Exportroutinen in pa_zws_pedi
+Die übrigen Exportroutinen in Package `pa_zws_pedi` scheinen alle auf der Hilfstabelle `TH_PEDIGREE` basieren. Das heisst vor dem Export muss zuerst die Hilfstabelle aktualisiert werden. Dies geschieht mit der Funktion `nInsertPedigree(pnAnimalID IN NUMBER, pnFlag IN NUMBER)`. In dieser Funktion wird für ein einzelnes Tier `pnAnimalID` überprüft, ob es schon in der Hilfstabelle vorhanden ist oder nicht. Falls nein, wird das Tier in die Hilfstabelle eingetragen.
+
+Basierend auf der Namensgebung, scheinen die Exportroutinen scheinen spezifisch für verschiedene Merkmale zu sein. So tauchen Bezeichnungen, wie `ttm`, `LBE` oder `ND` auf.
+
+
+## Pedigree Export ab GUI
+Der Job `SNP-Pedigree` Export ruft die Prozedur `PA_ZWS_PEDI.pedgree_rrtdm` auf. 
+
+
+## VMS und KWK
+Für den Mandanten `r r6ob_abbrtable$add_abbrev(psAbbrev = "VMS", psMeaning = "Mutterkuh Schweiz")` existiert die separate Exportroutine `PA_ZWS_MUKU.ZwsExportPedigree`.
+
+Für die `r r6ob_abbrtable$add_abbrev(psAbbrev = "KWK", psMeaning = "Kleinwiederkäuer")` gibt es die Routinen `pa_sheep_zws.EXPORT(psRasse IN VARCHAR2)` und `pa_capra_zws.EXPORT(psRasse IN VARCHAR2)`. Die Exporte werden für jede Rasse separat durchgeführt. Zusätzlich zu den Pedigrees werden auch immer noch Leistungsdaten exportiert.
+
+Die Export-Routinen für VMS und KWK exportieren die Daten alle direkt ab Datenbank. Hilfstabellen wie `TH_PEDIGREE` werden nicht verwendet.
+
+
+## Weiteres Vorgehen
+Für die Pedigree-Exporte bei VMS und KWK scheint kein Handlungsbedarf zu existieren. 
+
+Die Hilfstabelle `TH_PEDIGREE` wird von ZWSdatenexport-Routinen, wie z.Bsp. `pa_zws_fbk.Export` verwendet und deshalb kann diese Tabelle nicht gelöscht werden. 
+
+Offensichtlich nicht mehr verwendete Exportroutinen, wie z.Bsp. `pedigree_ttm`, `PEDIG_ASCII_LBE` und `PEDIGREE_ND` (siehe 20160818_usn_AW  Pedigrees von DB  Bug 1763.msg im Bug-Anhang)  können vor den Exporten einer ZWS-Kampagne auf einem Testserver gelöscht werden. Dann vergleicht man die exportierten Pedigrees von der produktiven Datenbank mit den Exporten vom Testserver. Werden keine Unterschiede gefunden, können die Routinen auch auf dem produktiven System gelöscht werden. Da die SQL-Quellen einer Versionenverwaltung (SVN) unterliegen, können im Notfall gelöschte Routinen wieder zurückgeholt werden.
+
+
+\pagebreak
+
+## Anhang
+
+```{r SearchAllSrcPedigree}
+sFuncCall <- "pedigree"
+sPlSqlSrcDir <- "H:/Argus/trunks/Argus"
+sPlSqlSrcPat <- "pgb.sql"
+lstFunCallOv <- SimpleProgCodeAnalysis::searchAllSrc(psFuncCall = sFuncCall,
+                             psPlSqlSrcDir = sPlSqlSrcDir,
+                             psPlSqlSrcPat = sPlSqlSrcPat)
+cat(" * Number of occurrences found in search: ", length(lstFunCallOv), "\n")
+### # writing complete result list to tables
+SimpleProgCodeAnalysis::writeResultListToTable(plstFunCallOv = lstFunCallOv, nMaxLenFunCalls = 50)
+```
+
+
+
+<!-- END of document:  Below this must not be anything, except the command to write all abbreviations to a file --> 
+```{r WriteTableOfAbbreviations, results='hide'}
+if (!r6ob_abbrtable$is_empty_abbr())
+  r6ob_abbrtable$writeToTsvFile()
+```
+ 
