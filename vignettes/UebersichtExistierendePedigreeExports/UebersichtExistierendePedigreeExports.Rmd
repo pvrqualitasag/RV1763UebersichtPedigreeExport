@@ -80,6 +80,10 @@ r6objDocStat$set_current_status(psVersion = "0.0.903",
                                 psStatus = "Ergänzungen von USU und USN",
                                 psDate = "2016-09-12",
                                 psProject = "RV1763")
+r6objDocStat$set_current_status(psVersion = "0.0.904",
+                                psStatus = "Beschreibung der Umsetzung",
+                                psDate = "2016-11-21",
+                                psProject = "RV1763")
 
 
 r6objDocStat$include_doc_stat(psTitle = "## Status des Dokuments")
@@ -160,6 +164,55 @@ Für die Pedigree-Exporte bei VMS und KWK scheint kein Handlungsbedarf zu existi
 Die Hilfstabelle `TH_PEDIGREE` wird von ZWSdatenexport-Routinen, wie z.Bsp. `pa_zws_fbk.Export` verwendet und deshalb kann diese Tabelle nicht gelöscht werden. 
 
 Offensichtlich nicht mehr verwendete Exportroutinen, wie z.Bsp. `pedigree_ttm`, `PEDIG_ASCII_LBE` und `PEDIGREE_ND` (siehe 20160818_usn_AW  Pedigrees von DB  Bug 1763.msg im Bug-Anhang)  können vor den Exporten einer ZWS-Kampagne auf einem Testserver gelöscht werden. Dann vergleicht man die exportierten Pedigrees von der produktiven Datenbank mit den Exporten vom Testserver. Werden keine Unterschiede gefunden, können die Routinen auch auf dem produktiven System gelöscht werden. Da die SQL-Quellen einer Versionenverwaltung (SVN) unterliegen, können im Notfall gelöschte Routinen wieder zurückgeholt werden.
+
+
+## Umsetzung
+### Public Routinen
+Es werden alle Routinen im Package `pa_zws_pedi` untersucht, wo diese genau eingesetzt werden. Bei den public Routinen, welche im Header-File deklariert sind, wird dies mit einr Suche über den gesamten Code gemacht. Bei den privaten Routinen wird die Suche auf den Package-Body beschränkt. 
+
+```{r RoutineOverview}
+dfRoutine <- data.frame(Routine    = c("ins_animals",
+                                       "nInsertPedigree",
+                                       "set_codierung",
+                                       "pedigree_ttm",
+                                       "PEDIG_ASCII_LBE",
+                                       "PEDIGREE_ND"),
+                        Kommentar  = c("Buchhaltung bei verschiedenen Datenexporten (LBE, ND)",
+                                       "Buchhaltung bei verschiedenen Datenexporten (FBK)",
+                                       "Codierung des Pedigrees (LBE)",
+                                       "Funktioniert nicht für Rassen ausser BV",
+                                       "Wird nicht mehr aktiv aufgerufen",
+                                       "Wird nicht mehr aktiv aufgerufen"),
+                        Status     = c("keep","keep","keep","delete","delete","delete"),
+                        stringsAsFactors = FALSE)
+knitr::kable(dfRoutine)
+```
+
+Die Routinen in der obigen Tabelle haben alle einen public Scope. Der Status gibt an, ob diese gelöscht ("del") oder behalten werden ("keep"). Die Kommentarspalte gibt die Begründung für den Status.
+
+
+### Private Routinen
+Die folgende Tabelle gibt eine Übersicht über die privaten Routinen
+
+```{r PrivatRoutine}
+dfPrivatRoutine <- data.frame(Routine = c("nChangeAnimalSexCode",
+                                          "sGetAnimalSexCode",
+                                          "nGetBsAnteilZWSLBE",
+                                          "sgetITB"),
+                              Kommentar = c("Verwendung in nInsertPedigree",
+                                            "Wird nicht aufgerufen",
+                                            "Aufruf in PEDIG_ASCII_LBE, funktioniert nur für BVCH",
+                                            "Alte Bestimmung der ITB-Nummer"),
+                              Status    = c("keep",
+                                            "del",
+                                            "del",
+                                            "keep"),
+                              stringsAsFactors = FALSE)
+knitr::kable(dfPrivatRoutine)
+```
+
+### Tests
+Als Tests werden Pedigrees für Mandanten BVCH und SHB  exportiert.
 
 
 \pagebreak
